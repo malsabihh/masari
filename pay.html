@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Masari checkout (demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script id="qrlib" src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" async onerror="window.__qrLibFailed=true"></script>
+<style>
+  :root {
+    --navy: #16305C;
+    --teal: #1E8A99;
+    --teal-dark: #145A66;
+    --gold: #E8A33D;
+    --page: #EDF2F0;
+    --paper: #FFFFFF;
+    --line: #DFE6E2;
+    --field: #C3CFCA;
+    --muted: #55606E;
+    --ok: #2E7D32;
+    --tint: #EEF7F8;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--navy);
+    font-family: "Readex Pro", "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  [hidden] { display: none !important; }
+  .ltr { direction: ltr; unicode-bidi: isolate; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .shell { max-width: 460px; margin: 0 auto; padding: 20px 16px 56px; }
+
+  /* Top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: flex; flex-direction: column; line-height: 1.25; }
+  .brand-name { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .brand-name span { color: var(--teal); font-weight: 500; margin-inline-start: 6px; }
+  .brand-sub { font-size: 13px; color: var(--muted); font-weight: 300; }
+  .lang {
+    font: inherit; font-size: 14px; font-weight: 500; color: var(--navy);
+    background: transparent; border: 1px solid var(--field); border-radius: 999px;
+    padding: 7px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .lang:hover { background: var(--paper); }
+
+  .demo {
+    margin: 16px 0 14px; padding: 10px 14px; font-size: 14px;
+    background: #FCF2DD; border-radius: 8px; color: #5B4310;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .demo::before {
+    content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--gold);
+  }
+
+  /* Checkout sheet */
+  .sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 26px 22px 22px; }
+  h1 { margin: 0 0 18px; font-size: 26px; font-weight: 500; line-height: 1.2; letter-spacing: -0.015em; }
+  h2 { margin: 0 0 10px; font-size: 15px; font-weight: 500; }
+
+  .rows { margin: 0; }
+  .row { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; }
+  .row dt { color: var(--muted); font-weight: 300; }
+  .row dd { margin: 0; text-align: end; }
+  .row.item dt { color: var(--navy); font-weight: 400; }
+  .row.rule { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 12px; }
+  .row.total { font-size: 19px; padding-top: 8px; }
+  .row.total dt, .row.total dd { color: var(--navy); font-weight: 600; }
+
+  .block { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .field label { display: block; font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+  input[type="date"] {
+    width: 100%; height: 48px; padding: 0 12px;
+    font: inherit; color: var(--navy); background: var(--paper);
+    border: 1px solid var(--field); border-radius: 10px;
+  }
+  .error { margin: 8px 0 0; font-size: 14px; color: #A1261D; }
+
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  legend { padding: 0; font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+  .methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .method {
+    position: relative; display: block; padding: 12px 14px; cursor: pointer;
+    border: 1px solid var(--field); border-radius: 10px; background: var(--paper);
+  }
+  .method input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .method b { display: block; font-weight: 500; }
+  .method small { display: block; font-size: 13px; color: var(--muted); font-weight: 300; line-height: 1.35; margin-top: 2px; }
+  .method.on { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); background: var(--tint); }
+  .method:focus-within { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  .democard { display: flex; gap: 14px; align-items: center; margin-top: 14px; }
+  .plastic {
+    flex: none; width: 150px; height: 90px; border-radius: 9px; padding: 11px 12px;
+    background: linear-gradient(135deg, var(--teal-dark), var(--navy));
+    color: #fff; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .chip { width: 22px; height: 16px; border-radius: 3px; background: var(--gold); }
+  .plastic .digits { font-size: 10px; letter-spacing: 0.02em; opacity: 0.92; white-space: nowrap; }
+  .plastic .who { font-size: 10.5px; font-weight: 300; opacity: 0.85; white-space: nowrap; }
+  .democard p { margin: 0; font-size: 13.5px; color: var(--muted); font-weight: 300; line-height: 1.45; }
+
+  .pay {
+    width: 100%; height: 54px; margin-top: 22px;
+    font: inherit; font-size: 17px; font-weight: 500; color: #fff;
+    background: var(--navy); border: 0; border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .pay:hover { background: var(--teal-dark); }
+  .pay[disabled] { background: var(--teal-dark); cursor: progress; }
+  .spin {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  /* Paid status */
+  .status { display: flex; gap: 14px; align-items: flex-start; margin: 22px 4px 20px; }
+  .tick {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--ok);
+    display: grid; place-items: center; margin-top: 2px;
+  }
+  .status h1 { margin: 0 0 4px; font-size: 24px; }
+  .status p { margin: 0; color: var(--muted); font-weight: 300; }
+
+  /* Ticket */
+  .ticket {
+    position: relative; background: var(--paper); border-radius: 16px;
+    filter: drop-shadow(0 12px 22px rgba(22, 48, 92, 0.16));
+  }
+  .ticket.issue { animation: issue 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  @keyframes issue { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
+
+  .t-head {
+    position: relative; overflow: hidden; background: var(--navy); color: #fff;
+    border-radius: 16px 16px 0 0; padding: 20px 22px 22px;
+  }
+  .t-head .path { position: absolute; inset-block: 0; inset-inline-end: 0; height: 100%; width: 150px; opacity: 0.9; }
+  [dir="rtl"] .t-head .path { transform: scaleX(-1); }
+  .t-place { font-size: 13px; font-weight: 300; opacity: 0.85; }
+  .t-kind { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; margin-top: 2px; }
+  .t-kind::after { content: ""; display: block; width: 44px; height: 3px; background: var(--gold); margin-top: 10px; border-radius: 2px; }
+  .t-date { margin-top: 12px; font-size: 16px; }
+
+  .t-body { padding: 16px 22px 18px; }
+  .t-body .row dt { color: var(--navy); font-weight: 400; }
+  .t-body .row.paid dt { color: var(--muted); font-weight: 300; }
+  .t-body .row.paid dd { font-weight: 500; }
+  .pill {
+    display: inline-block; font-size: 12.5px; font-weight: 500; color: var(--ok);
+    background: #E8F3E9; border-radius: 999px; padding: 1px 9px; margin-inline-start: 8px;
+  }
+
+  .tear { position: relative; height: 0; margin: 0 16px; border-top: 2px dashed #C7D3CE; }
+  .tear::before, .tear::after {
+    content: ""; position: absolute; top: -12px; width: 22px; height: 22px; border-radius: 50%; background: var(--page);
+  }
+  .tear::before { left: -27px; }
+  .tear::after { right: -27px; }
+
+  .stub { display: flex; gap: 18px; align-items: center; padding: 20px 22px 22px; }
+  .qr { flex: none; width: 148px; height: 148px; display: grid; place-items: center; }
+  .qr svg, .qr img { width: 100%; height: 100%; display: block; }
+  .qr .qr-msg { font-size: 13px; color: var(--muted); text-align: center; }
+  .stub-text { min-width: 0; }
+  .stub-label { font-size: 13px; color: var(--muted); font-weight: 300; }
+  .stub-ref { font-size: 21px; font-weight: 600; letter-spacing: 0.02em; margin: 1px 0 10px; }
+  .stub-hint { font-size: 14px; line-height: 1.4; }
+
+  .t-foot {
+    border-top: 1px solid var(--line); border-radius: 0 0 16px 16px; background: #F5F8F7;
+    padding: 11px 22px; font-size: 13px; color: var(--muted);
+  }
+
+  .ghost {
+    width: 100%; height: 48px; margin-top: 18px;
+    font: inherit; font-size: 15px; font-weight: 500; color: var(--navy);
+    background: transparent; border: 1px solid var(--field); border-radius: 12px; cursor: pointer;
+  }
+  .ghost:hover { background: var(--paper); }
+
+  .empty p { margin: 0; color: var(--muted); font-weight: 300; }
+
+  @media (max-width: 380px) {
+    .stub { flex-direction: column; align-items: flex-start; }
+    .methods { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticket.issue { animation: none; }
+    .spin { animation-duration: 2.4s; }
+  }
+  @media print {
+    body { background: #fff; }
+    .top, .demo, .status, .ghost { display: none !important; }
+    .shell { padding: 0; }
+    .ticket { filter: none; border: 1px solid #999; animation: none; }
+    .tear::before, .tear::after { background: #fff; }
+    .t-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="top">
+    <div class="brand">
+      <div class="brand-name">Masari<span lang="ar">مساري</span></div>
+      <div class="brand-sub" data-i18n="place"></div>
+    </div>
+    <button type="button" class="lang" id="langBtn"></button>
+  </header>
+
+  <div class="demo" data-i18n="demoBar"></div>
+
+  <noscript><div class="sheet">This demo page needs JavaScript turned on.</div></noscript>
+
+  <!-- Pay view -->
+  <main id="viewPay" hidden>
+    <div class="sheet">
+      <h1 data-i18n="payTitle"></h1>
+
+      <dl class="rows" id="orderRows"></dl>
+
+      <div class="block field">
+        <label for="visitDate" data-i18n="visitDate"></label>
+        <input type="date" id="visitDate" required>
+        <p class="error" id="dateError" role="alert" hidden data-i18n="dateError"></p>
+      </div>
+
+      <div class="block">
+        <fieldset>
+          <legend data-i18n="method"></legend>
+          <div class="methods">
+            <label class="method" id="mK">
+              <input type="radio" name="method" value="k" checked>
+              <b data-i18n="knet"></b><small data-i18n="knetHint"></small>
+            </label>
+            <label class="method" id="mC">
+              <input type="radio" name="method" value="c">
+              <b data-i18n="card"></b><small data-i18n="cardHint"></small>
+            </label>
+          </div>
+        </fieldset>
+        <div class="democard">
+          <div class="plastic" aria-hidden="true">
+            <div class="chip"></div>
+            <div>
+              <div class="digits ltr num">0000 0000 0000 0000</div>
+              <div class="who" id="cardWho"></div>
+            </div>
+          </div>
+          <p data-i18n="cardNote"></p>
+        </div>
+      </div>
+
+      <button type="button" class="pay" id="payBtn"></button>
+    </div>
+  </main>
+
+  <!-- Ticket view (after paying, or when a ticket QR code is scanned) -->
+  <main id="viewTicket" hidden>
+    <div class="status" id="status">
+      <div class="tick" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3.5 9.5l3.5 3.5 7.5-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <h1 id="statusTitle" tabindex="-1"></h1>
+        <p id="statusSub"></p>
+      </div>
+    </div>
+
+    <article class="ticket" id="ticket">
+      <div class="t-head">
+        <svg class="path" viewBox="0 0 150 130" fill="none" aria-hidden="true" preserveAspectRatio="xMaxYMid slice">
+          <path d="M8 118 C 40 112, 44 78, 74 74 S 112 62, 118 34" stroke="#1E8A99" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 9"/>
+          <circle cx="118" cy="26" r="9" fill="#E8A33D"/>
+          <circle cx="118" cy="26" r="3.2" fill="#16305C"/>
+        </svg>
+        <div class="t-place" data-i18n="place"></div>
+        <div class="t-kind" data-i18n="ticketTitle"></div>
+        <div class="t-date" id="tDate"></div>
+      </div>
+      <div class="t-body">
+        <dl class="rows" id="ticketRows"></dl>
+      </div>
+      <div class="tear" aria-hidden="true"></div>
+      <div class="stub">
+        <div class="qr" id="qr"></div>
+        <div class="stub-text">
+          <div class="stub-label" data-i18n="ref"></div>
+          <div class="stub-ref ltr num" id="tRef"></div>
+          <div class="stub-hint" data-i18n="scan"></div>
+        </div>
+      </div>
+      <div class="t-foot" data-i18n="demoTicket"></div>
+    </article>
+
+    <button type="button" class="ghost" id="printBtn" data-i18n="print"></button>
+  </main>
+
+  <!-- Empty view -->
+  <main id="viewEmpty" hidden>
+    <div class="sheet empty">
+      <h1 data-i18n="emptyTitle"></h1>
+      <p data-i18n="emptyBody"></p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var I18N = {
+    en: {
+      place: "Abdullah Al Salem Cultural Centre",
+      demoBar: "Demo checkout. No real payment is taken.",
+      payTitle: "Pay for your visit",
+      ref: "Booking reference",
+      subtotal: "Subtotal",
+      discount: "Group discount",
+      off: "{n}% off",
+      total: "Total",
+      visitDate: "Visit date",
+      dateError: "Choose a visit date from today onward.",
+      method: "Payment method",
+      knet: "KNET",
+      knetHint: "Debit card from a Kuwaiti bank",
+      card: "Credit card",
+      cardHint: "Visa or Mastercard",
+      withK: "KNET",
+      withC: "credit card",
+      whoK: "Demo KNET card",
+      whoC: "Demo credit card",
+      cardNote: "Nothing to type. This demo pays with a test card, so please do not enter real card details anywhere.",
+      payBtn: "Pay {amount}",
+      processing: "Processing payment",
+      paidTitle: "Payment successful",
+      paidSub: "Paid {amount} with {method}. Your ticket is below.",
+      checkTitle: "Ticket found",
+      checkSub: "Paid. Valid on {date}.",
+      ticketTitle: "Admission ticket",
+      paid: "Paid",
+      scan: "Show this QR code at the entrance.",
+      demoTicket: "Demo ticket for a student project. Not valid for entry.",
+      print: "Print or save ticket",
+      qrWait: "Loading QR code",
+      qrFail: "QR code could not load. Use the booking reference instead.",
+      qrAlt: "QR code for booking {ref}",
+      emptyTitle: "No order to pay for",
+      emptyBody: "Start a booking in the Masari chat, then use the Pay now link it gives you.",
+      currency: "KWD",
+      langBtn: "عربي",
+      adult: "Adult", child: "Child", student: "Student", senior: "Senior",
+      family: "Family Package", annual: "Annual Membership"
+    },
+    ar: {
+      place: "مركز الشيخ عبدالله السالم الثقافي",
+      demoBar: "صفحة دفع تجريبية. لا يتم خصم أي مبلغ حقيقي.",
+      payTitle: "ادفع قيمة زيارتك",
+      ref: "رقم الحجز",
+      subtotal: "المجموع الفرعي",
+      discount: "خصم المجموعات",
+      off: "خصم {n}%",
+      total: "الإجمالي",
+      visitDate: "تاريخ الزيارة",
+      dateError: "اختر تاريخ الزيارة ابتداءً من اليوم.",
+      method: "طريقة الدفع",
+      knet: "كي نت",
+      knetHint: "بطاقة سحب آلي من بنك كويتي",
+      card: "بطاقة ائتمانية",
+      cardHint: "فيزا أو ماستركارد",
+      withK: "كي نت",
+      withC: "بطاقة ائتمانية",
+      whoK: "بطاقة كي نت تجريبية",
+      whoC: "بطاقة ائتمانية تجريبية",
+      cardNote: "لا حاجة لإدخال أي بيانات. يتم الدفع ببطاقة اختبار، لذا يرجى عدم إدخال بيانات بطاقة حقيقية.",
+      payBtn: "ادفع {amount}",
+      processing: "جارٍ معالجة الدفع",
+      paidTitle: "تم الدفع بنجاح",
+      paidSub: "تم دفع {amount} عن طريق {method}. تذكرتك في الأسفل.",
+      checkTitle: "تم العثور على التذكرة",
+      checkSub: "مدفوعة. صالحة يوم {date}.",
+      ticketTitle: "تذكرة دخول",
+      paid: "مدفوعة",
+      scan: "أظهر رمز QR عند المدخل.",
+      demoTicket: "تذكرة تجريبية لمشروع طلابي. غير صالحة للدخول.",
+      print: "طباعة التذكرة أو حفظها",
+      qrWait: "جارٍ تحميل رمز QR",
+      qrFail: "تعذر تحميل رمز QR. استخدم رقم الحجز بدلاً منه.",
+      qrAlt: "رمز QR للحجز {ref}",
+      emptyTitle: "لا يوجد طلب للدفع",
+      emptyBody: "ابدأ الحجز من محادثة مساري ثم استخدم رابط الدفع الذي يظهر لك.",
+      currency: "د.ك",
+      langBtn: "English",
+      adult: "بالغ", child: "طفل", student: "طالب", senior: "كبار السن",
+      family: "باقة العائلة", annual: "العضوية السنوية"
+    }
+  };
+
+  // Short codes used in the Pay now link, in display order.
+  var TYPES = [["a", "adult"], ["c", "child"], ["st", "student"], ["sn", "senior"], ["f", "family"], ["an", "annual"]];
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var PARAMS = new URLSearchParams(window.location.search);
+
+  var state = {
+    lang: PARAMS.get("lang") === "ar" ? "ar" : "en",
+    method: "k",
+    date: "",
+    view: "empty",   // "pay" | "ticket" | "check" | "empty"
+    fresh: false,    // true right after paying, to play the ticket reveal once
+    order: null
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function t(key, vars) {
+    var s = I18N[state.lang][key] || "";
+    if (vars) Object.keys(vars).forEach(function (k) { s = s.replace("{" + k + "}", vars[k]); });
+    return s;
+  }
+  function money(v) { return v + " " + t("currency"); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function validISO(s) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s || "")) return false;
+    var p = s.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return d.getFullYear() === +p[0] && d.getMonth() === +p[1] - 1 && d.getDate() === +p[2];
+  }
+  function prettyDate(iso) {
+    var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var locale = state.lang === "ar" ? "ar-KW-u-nu-latn-ca-gregory" : "en-GB";
+    try {
+      return new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(d);
+    } catch (e) { return iso; }
+  }
+
+  // Read and validate the order carried in the link. Returns null if anything looks wrong.
+  function parseOrder() {
+    var ref = PARAMS.get("ref") || "";
+    if (!/^ASCC-[A-Z0-9]{6}$/.test(ref)) return null;
+    var amount = /^\d{1,7}(\.\d{1,3})?$/;
+    var total = PARAMS.get("total") || "";
+    var sub = PARAMS.get("sub") || total;
+    var disc = PARAMS.get("disc") || "0";
+    if (!amount.test(total) || !amount.test(sub) || !/^\d{1,2}$/.test(disc)) return null;
+    var items = [];
+    TYPES.forEach(function (tp) {
+      var raw = PARAMS.get(tp[0]) || "";
+      if (!/^\d{1,3}$/.test(raw)) return;
+      var q = parseInt(raw, 10);
+      if (q > 0) items.push({ code: tp[0], key: tp[1], qty: q });
+    });
+    if (!items.length) return null;
+    return {
+      ref: ref,
+      total: Number(total).toFixed(3),
+      sub: Number(sub).toFixed(3),
+      disc: parseInt(disc, 10),
+      items: items
+    };
+  }
+
+  // The link stored in the QR code: this same page, opened straight on the ticket.
+  function ticketURL() {
+    var o = state.order, q = ["ref=" + o.ref];
+    o.items.forEach(function (it) { q.push(it.code + "=" + it.qty); });
+    q.push("sub=" + o.sub, "disc=" + o.disc, "total=" + o.total, "date=" + state.date, "t=1");
+    if (state.lang === "ar") q.push("lang=ar");
+    return window.location.href.split(/[?#]/)[0] + "?" + q.join("&");
+  }
+
+  function addRow(dl, cls, label, value, valueCls) {
+    var row = document.createElement("div");
+    row.className = "row" + (cls ? " " + cls : "");
+    var dt = document.createElement("dt"); dt.textContent = label;
+    var dd = document.createElement("dd"); dd.textContent = value;
+    if (valueCls) dd.className = valueCls;
+    row.appendChild(dt); row.appendChild(dd);
+    dl.appendChild(row);
+    return row;
+  }
+
+  function renderOrderRows() {
+    var o = state.order, dl = $("orderRows");
+    dl.textContent = "";
+    addRow(dl, "", t("ref"), o.ref, "ltr num");
+    o.items.forEach(function (it, i) {
+      addRow(dl, "item" + (i === 0 ? " rule" : ""), t(it.key), "\u00D7 " + it.qty, "ltr num");
+    });
+    addRow(dl, "rule", t("subtotal"), money(o.sub), "num");
+    if (o.disc > 0) addRow(dl, "", t("discount"), t("off", { n: o.disc }), "num");
+    addRow(dl, "total", t("total"), money(o.total), "num");
+  }
+
+  function renderTicketRows() {
+    var o = state.order, dl = $("ticketRows");
+    dl.textContent = "";
+    o.items.forEach(function (it) { addRow(dl, "", t(it.key), "\u00D7 " + it.qty, "ltr num"); });
+    var paid = addRow(dl, "paid rule", t("total"), money(o.total), "num");
+    var pill = document.createElement("span");
+    pill.className = "pill"; pill.textContent = t("paid");
+    paid.querySelector("dt").appendChild(pill);
+  }
+
+  // QR code: drawn with the qrcode-generator library; falls back to an image service, then to a message.
+  var qrTimer = null;
+  function renderQR() {
+    var box = $("qr"), text = ticketURL(), label = t("qrAlt", { ref: state.order.ref });
+    window.clearTimeout(qrTimer);
+    box.textContent = "";
+
+    if (typeof window.qrcode === "function") {
+      try {
+        var qr = window.qrcode(0, "M");
+        qr.addData(text);
+        qr.make();
+        var n = qr.getModuleCount(), quiet = 3, size = n + quiet * 2, d = "";
+        for (var r = 0; r < n; r++) {
+          for (var c = 0; c < n; c++) {
+            if (qr.isDark(r, c)) d += "M" + (c + quiet) + " " + (r + quiet) + "h1v1h-1z";
+          }
+        }
+        var svg = document.createElementNS(SVG_NS, "svg");
+        svg.setAttribute("viewBox", "0 0 " + size + " " + size);
+        svg.setAttribute("shape-rendering", "crispEdges");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", label);
+        var bg = document.createElementNS(SVG_NS, "rect");
+        bg.setAttribute("width", size); bg.setAttribute("height", size); bg.setAttribute("fill", "#fff");
+        var path = document.createElementNS(SVG_NS, "path");
+        path.setAttribute("d", d); path.setAttribute("fill", "#0E2142");
+        svg.appendChild(bg); svg.appendChild(path);
+        box.appendChild(svg);
+        return;
+      } catch (e) { /* fall through to the image service */ }
+    } else if (!window.__qrLibFailed && !renderQR.gaveUp) {
+      // Library still loading: wait briefly, then give up on it.
+      var wait = document.createElement("div");
+      wait.className = "qr-msg"; wait.textContent = t("qrWait");
+      box.appendChild(wait);
+      qrTimer = window.setTimeout(function () { renderQR.gaveUp = true; renderQR(); }, 2500);
+      return;
+    }
+
+    var img = document.createElement("img");
+    img.alt = label;
+    img.onerror = function () {
+      box.textContent = "";
+      var msg = document.createElement("div");
+      msg.className = "qr-msg"; msg.textContent = t("qrFail");
+      box.appendChild(msg);
+    };
+    img.src = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=" + encodeURIComponent(text);
+    box.appendChild(img);
+  }
+
+  function show(id) {
+    ["viewPay", "viewTicket", "viewEmpty"].forEach(function (v) { $(v).hidden = v !== id; });
+  }
+
+  function render() {
+    var html = document.documentElement;
+    html.lang = state.lang;
+    html.dir = state.lang === "ar" ? "rtl" : "ltr";
+    document.title = state.lang === "ar" ? "الدفع عبر مساري (تجريبي)" : "Masari checkout (demo)";
+
+    document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = t(el.getAttribute("data-i18n")); });
+    var lb = $("langBtn");
+    lb.textContent = t("langBtn");
+    lb.lang = state.lang === "ar" ? "en" : "ar";
+
+    if (state.view === "empty") { show("viewEmpty"); return; }
+
+    var o = state.order;
+    if (state.view === "pay") {
+      show("viewPay");
+      renderOrderRows();
+      $("mK").classList.toggle("on", state.method === "k");
+      $("mC").classList.toggle("on", state.method === "c");
+      $("cardWho").textContent = t(state.method === "k" ? "whoK" : "whoC");
+      if (!$("payBtn").disabled) $("payBtn").textContent = t("payBtn", { amount: money(o.total) });
+      return;
+    }
+
+    // "ticket" (just paid) or "check" (opened from a scanned QR code)
+    show("viewTicket");
+    if (state.view === "ticket") {
+      $("statusTitle").textContent = t("paidTitle");
+      $("statusSub").textContent = t("paidSub", { amount: money(o.total), method: t(state.method === "k" ? "withK" : "withC") });
+    } else {
+      $("statusTitle").textContent = t("checkTitle");
+      $("statusSub").textContent = t("checkSub", { date: prettyDate(state.date) });
+    }
+    $("tDate").textContent = prettyDate(state.date);
+    $("tRef").textContent = o.ref;
+    renderTicketRows();
+    renderQR();
+    $("ticket").classList.toggle("issue", state.fresh);
+    state.fresh = false;
+  }
+
+  function pay() {
+    var input = $("visitDate"), btn = $("payBtn");
+    var ok = validISO(input.value) && input.value >= todayISO();
+    $("dateError").hidden = ok;
+    if (!ok) { input.focus(); return; }
+    state.date = input.value;
+
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    btn.textContent = "";
+    var spin = document.createElement("span"); spin.className = "spin";
+    var txt = document.createElement("span"); txt.textContent = t("processing");
+    btn.appendChild(spin); btn.appendChild(txt);
+
+    // Simulated payment: nothing is sent anywhere.
+    window.setTimeout(function () {
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+      state.view = "ticket";
+      state.fresh = true;
+      render();
+      try { window.history.replaceState(null, "", ticketURL()); } catch (e) { /* not available on file:// */ }
+      window.scrollTo(0, 0);
+      $("statusTitle").focus({ preventScroll: true });
+    }, 1400);
+  }
+
+  // Start up
+  state.order = parseOrder();
+  if (state.order) {
+    var scannedDate = PARAMS.get("date") || "";
+    if (PARAMS.get("t") === "1" && validISO(scannedDate)) {
+      state.view = "check";
+      state.date = scannedDate;
+    } else {
+      state.view = "pay";
+      $("visitDate").min = todayISO();
+      $("visitDate").value = todayISO();
+    }
+  }
+
+  $("langBtn").addEventListener("click", function () {
+    state.lang = state.lang === "ar" ? "en" : "ar";
+    render();
+  });
+  document.querySelectorAll('input[name="method"]').forEach(function (r) {
+    r.addEventListener("change", function () { state.method = r.value; render(); });
+  });
+  $("visitDate").addEventListener("input", function () { $("dateError").hidden = true; });
+  $("payBtn").addEventListener("click", pay);
+  $("printBtn").addEventListener("click", function () { window.print(); });
+
+  // Redraw the QR code once the library arrives, or fall back if it fails.
+  var lib = $("qrlib");
+  function libSettled() { if (state.view === "ticket" || state.view === "check") renderQR(); }
+  if (lib) {
+    lib.addEventListener("load", libSettled);
+    lib.addEventListener("error", function () { window.__qrLibFailed = true; libSettled(); });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
